@@ -2,60 +2,46 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Current state
+## What this is
 
-This project is **not yet scaffolded**. The only files present are `requirements.txt`, `.envrc`, and the `.venv/`. There is no `dbt_project.yml`, no models, and no application code yet. Treat early tasks as greenfield setup, and update this file as real structure lands.
+A **dbt + BigQuery** baseball analytics project. dbt models compile to SQL and run against BigQuery; `google-genai` / `google-cloud-aiplatform` (Vertex AI) are available for GenAI work but nothing uses them yet.
 
-## Stack
-
-The dependency set in `requirements.txt` defines the intended architecture:
-
-- **dbt-core + dbt-bigquery** — the data transformation layer. Analytics is expected to be built as dbt models compiled to SQL and run against BigQuery.
-- **BigQuery** is the warehouse (`google-cloud-bigquery`, `pandas-gbq`, `db-dtypes`, `pyarrow`).
-- **pandas / numpy** — local dataframe work and loading data to/from BigQuery.
-- **google-genai + google-cloud-aiplatform (Vertex AI)** — GenAI/LLM integration is in scope.
-
-Not a git repository yet (`git init` if version control is needed).
+The dbt project lives at the **repo root** (not in a subdirectory): `dbt_project.yml`, `models/`, `macros/`, `seeds/`, `snapshots/`, `tests/`, `analyses/`. The starter example models have been removed — `models/` is currently empty, so this is a blank modeling slate.
 
 ## Environment
 
 - Python **3.12**, virtualenv at `.venv/`.
-- `.envrc` activates the venv (`source .venv/bin/activate`) — it relies on **direnv**. If direnv isn't installed/hooked, activate manually:
+- `.envrc` activates the venv via **direnv**. If direnv isn't hooked, activate manually before running dbt:
   ```bash
   source .venv/bin/activate
   ```
 - Install deps: `pip install -r requirements.txt`
 
-## dbt profile (IMPORTANT)
+## Warehouse connection
 
-dbt resolves connections from `~/.dbt/profiles.yml`. That file currently contains only an **unrelated Snowflake "dbtlearn" profile** left over from a tutorial — it is **not** for this project and must not be used. A BigQuery profile must be created before any dbt command will work, e.g.:
+- Profile: **`baseball_analytics`** (matches `profile:` in `dbt_project.yml`), defined in `~/.dbt/profiles.yml`.
+- Auth: **BigQuery `oauth`** using local Application Default Credentials (ADC). No keyfile.
+- GCP project: `baseball-analytics-portfolio`; default dataset: `baseball_analytics`; location `US`.
+- `dbt debug` passes. If auth fails, refresh ADC with `gcloud auth application-default login`.
+- Note: `~/.dbt/profiles.yml` also contains an unrelated `dbtlearn` (Snowflake) profile from a tutorial — ignore it.
 
-```yaml
-baseball_analytics:
-  target: dev
-  outputs:
-    dev:
-      type: bigquery
-      method: oauth        # or service-account with keyfile
-      project: <gcp-project-id>
-      dataset: <bq-dataset>
-      threads: 4
-      location: US
-```
+## Common commands
 
-The profile name here must match the `profile:` declared in the project's `dbt_project.yml` once it exists.
-
-## Common commands (once a dbt project exists)
+Run from the repo root with the venv active.
 
 ```bash
-dbt init baseball_analytics   # scaffold the project (run once)
 dbt debug                     # verify warehouse connection & profile
-dbt deps                      # install dbt packages
+dbt deps                      # install dbt packages (after adding packages.yml)
 dbt build                     # run + test all models
 dbt run                       # run models only
-dbt run --select <model>      # run a single model (and +model / model+ for graph selectors)
+dbt run --select <model>      # single model; +model / model+ for upstream/downstream
 dbt test                      # run all tests
 dbt test --select <model>     # test a single model
 dbt compile                   # compile SQL without executing
 dbt docs generate && dbt docs serve
 ```
+
+## Conventions
+
+- Project-wide default materialization is **`view`** (`models:` block in `dbt_project.yml`); override per-model with `{{ config(materialized='table') }}` or per-folder in `dbt_project.yml`.
+- Until at least one model exists, `dbt parse` warns about the unused `models.baseball_analytics` config path — expected, harmless, and clears once a model is added.
