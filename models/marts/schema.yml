@@ -1,0 +1,64 @@
+version: 2
+
+models:
+  - name: mart_batter_game_stats
+    description: >
+      Batter performance aggregated per game. One row per batter per game.
+      Grain: batter_id + game_id. Includes Statcast batted ball metrics, expected
+      stats, swing metrics, and 2024+ bat tracking data.
+    columns:
+      - name: batter_id
+        description: "MLB player ID for the batter"
+        tests:
+          - not_null
+      - name: game_id
+        description: "MLB game identifier"
+        tests:
+          - not_null
+      - name: game_date
+        description: "Date of the game"
+        tests:
+          - not_null
+      - name: plate_appearances
+        description: "Total plate appearances in the game"
+      - name: avg_exit_velocity_mph
+        description: "Average exit velocity on batted balls"
+      - name: hard_hit_rate
+        description: "Rate of batted balls with exit velocity >= 95 mph"
+      - name: barrel_rate
+        description: "Rate of barreled balls (launch_speed_angle = 6)"
+      - name: avg_xwoba
+        description: "Average expected weighted on-base average"
+      - name: whiff_rate
+        description: "Rate of swings that result in a miss"
+
+  - name: mart_pitcher_game_stats
+    description: >
+      Pitcher performance aggregated per game. One row per pitcher per game.
+      Grain: pitcher_id + game_id. Includes pitch mix, velocity, command metrics,
+      whiff rate, and contact quality allowed.
+    columns:
+      - name: pitcher_id
+        description: "MLB player ID for the pitcher"
+        tests:
+          - not_null
+      - name: game_id
+        description: "MLB game identifier"
+        tests:
+          - not_null
+      - name: game_date
+        description: "Date of the game"
+        tests:
+          - not_null
+      - name: total_pitches
+        description: "Total pitches thrown in the game"
+        tests:
+          - not_null
+      - name: avg_pitch_velocity_mph
+        description: "Average fastball/pitch velocity"
+      - name: whiff_rate
+        description: "Rate of swings that result in a miss"
+      - name: strike_pct
+        description: "Percentage of pitches that are strikes"
+      - name: hard_hit_allowed_rate
+        description: "Rate of batted balls >= 95 mph against this pitcher"
