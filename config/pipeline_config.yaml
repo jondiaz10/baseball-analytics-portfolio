@@ -1,0 +1,15 @@
+# Configuration for the Statcast ingestion pipeline.
+# All runtime values live here so nothing is hardcoded in the source.
+
+gcs:
+  bucket: baseball-analytics-raw-data
+  prefix: statcast/
+
+bigquery:
+  project: baseball-analytics-portfolio
+  raw_dataset: raw
+  table: statcast_pitches
+
+extract:
+  # Number of days to pull per request to avoid Baseball Savant rate limiting.
+  chunk_size_days: 7
