@@ -1,0 +1,62 @@
+version: 2
+
+models:
+  - name: stg_statcast_pitches
+    description: >
+      Cleaned and renamed Statcast pitch-level data. One row per pitch.
+      Deprecated columns removed, data types corrected, column names standardized.
+    columns:
+      - name: game_id
+        description: "Unique game identifier (MLB game_pk)"
+        tests:
+          - not_null
+      - name: game_date
+        description: "Date of the game"
+        tests:
+          - not_null
+      - name: batter_id
+        description: "MLB player ID for the batter"
+        tests:
+          - not_null
+      - name: pitcher_id
+        description: "MLB player ID for the pitcher"
+        tests:
+          - not_null
+      - name: pitch_type
+        description: "Pitch type abbreviation (FF=4-seam, SL=slider, etc.)"
+        tests:
+          - not_null
+      - name: pitch_outcome_category
+        description: "Pitch result category: S=strike, B=ball, X=in play"
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['S', 'B', 'X']
+      - name: batter_side
+        description: "Batter handedness"
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['L', 'R']
+      - name: pitcher_throws
+        description: "Pitcher throwing arm"
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['L', 'R']
+      - name: xba
+        description: "Expected batting average based on exit velocity and launch angle"
+      - name: xwoba
+        description: "Expected weighted on-base average"
+      - name: xslg
+        description: "Expected slugging percentage"
+      - name: exit_velocity_mph
+        description: "Exit velocity of batted ball in mph"
+      - name: launch_angle_deg
+        description: "Launch angle of batted ball in degrees"
+      - name: spin_rate_rpm
+        description: "Pitch spin rate in RPM"
+      - name: bat_speed
+        description: "Bat speed at point of contact in mph (2024+ metric)"
+      - name: swing_length
+        description: "Length of swing path in feet (2024+ metric)"

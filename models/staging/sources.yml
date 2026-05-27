@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: raw
+    database: baseball-analytics-portfolio
+    schema: raw
+    tables:
+      - name: statcast_pitches
+        description: >
+          Raw Statcast pitch-level data loaded from Baseball Savant via the
+          ingestion pipeline. One row per pitch. Loaded in parquet format via GCS.
