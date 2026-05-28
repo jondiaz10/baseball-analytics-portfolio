@@ -9,3 +9,7 @@ sources:
         description: >
           Raw Statcast pitch-level data loaded from Baseball Savant via the
           ingestion pipeline. One row per pitch. Loaded in parquet format via GCS.
+      - name: player_lookup
+        description: >
+          Chadwick Bureau player registry. Maps MLB MLBAM IDs to player names
+          and metadata. Full refresh on each pipeline run.

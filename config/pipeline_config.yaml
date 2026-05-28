@@ -13,3 +13,8 @@ bigquery:
 extract:
   # Number of days to pull per request to avoid Baseball Savant rate limiting.
   chunk_size_days: 7
+
+reference_tables:
+  player_lookup:
+    dataset: raw
+    table: player_lookup
