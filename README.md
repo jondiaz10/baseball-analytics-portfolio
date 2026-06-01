@@ -80,18 +80,19 @@ baseball-analytics/
 
 ## Key Metrics
 
-- **31,191** pitches extracted (May 19–26, 2026 sample)
+- **258,154** pitches extracted (full 2026 season-to-date, Mar 27 – May 31)
+- **257,220** pitches in the cleaned staging layer (null pitch types filtered)
 - **118** raw columns cleaned in the staging layer
 - **127,526** players in the reference table
-- **8/8** dbt tests passing
+- **15/15** dbt tests passing
 
 ## dbt Models
 
 | Model | Layer | Grain | Description |
 |---|---|---|---|
-| `stg_statcast_pitches` | staging | one row per pitch | Cleans 118 raw columns, casts `game_date` integer → DATE, drops deprecated columns, renames for clarity, filters null pitch types |
-| `mart_batter_game_stats` | mart | batter × game | Exit velocity, xwOBA, hard-hit rate, barrel rate, bat speed, and swing metrics |
-| `mart_pitcher_game_stats` | mart | pitcher × game | Velocity, whiff rate, strike %, pitch-mix percentages (9 pitch types), hard-hit-allowed rate |
+| `stg_statcast_pitches` | staging | one row per pitch | Cleans 118 raw columns, casts `game_date` integer → DATE, drops deprecated columns, renames for clarity, filters null pitch types — 257,220 rows |
+| `mart_batter_game_stats` | mart | batter × game | Exit velocity, xwOBA, hard-hit rate, barrel rate, bat speed, and swing metrics — 17,778 rows |
+| `mart_pitcher_game_stats` | mart | pitcher × game | Velocity, whiff rate, strike %, pitch-mix percentages (9 pitch types), hard-hit-allowed rate — 7,389 rows |
 
 ## Setup
 
@@ -127,7 +128,13 @@ dbt debug
 **Run the ingestion pipeline** (dates inclusive, `YYYY-MM-DD`):
 
 ```bash
-python scripts/run_pipeline.py --start-date 2026-05-19 --end-date 2026-05-26
+# Incremental append (default)
+python scripts/run_pipeline.py --start-date 2026-03-27 --end-date 2026-05-31
+
+# Full refresh — wipes the raw table before loading (WRITE_TRUNCATE)
+python scripts/run_pipeline.py --start-date 2026-03-27 --end-date 2026-05-31 --mode full-refresh
+
+# Reference table (Chadwick Bureau player registry)
 python scripts/run_player_lookup.py
 ```
 
