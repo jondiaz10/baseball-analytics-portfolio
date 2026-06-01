@@ -72,10 +72,13 @@ pitcher_stats as (
         )) as cnt_other,
 
         -- contact allowed
-        avg(exit_velocity_mph) as avg_exit_velocity_allowed,
-        avg(launch_angle_deg) as avg_launch_angle_allowed,
-        countif(exit_velocity_mph >= 95) as hard_hit_allowed_count,
-        countif(exit_velocity_mph is not null) as batted_balls_allowed,
+        -- A "batted ball" is a ball put in play (pitch_outcome_category = 'X').
+        -- We gate on that rather than exit_velocity_mph IS NOT NULL because
+        -- Statcast also records exit velocity on fouls, which are not in play.
+        avg(if(pitch_outcome_category = 'X', exit_velocity_mph, null)) as avg_exit_velocity_allowed,
+        avg(if(pitch_outcome_category = 'X', launch_angle_deg, null)) as avg_launch_angle_allowed,
+        countif(pitch_outcome_category = 'X' and exit_velocity_mph >= 95) as hard_hit_allowed_count,
+        countif(pitch_outcome_category = 'X') as batted_balls_allowed,
 
         -- expected stats against
         avg(xba) as avg_xba_against,

@@ -57,12 +57,15 @@ batter_stats as (
         )) as whiffs,
 
         -- batted ball metrics
-        avg(exit_velocity_mph) as avg_exit_velocity_mph,
-        max(exit_velocity_mph) as max_exit_velocity_mph,
-        avg(launch_angle_deg) as avg_launch_angle_deg,
-        countif(exit_velocity_mph >= 95) as hard_hit_count,
-        countif(exit_velocity_mph is not null) as batted_balls,
-        countif(launch_speed_angle = 6) as barrel_count,
+        -- A "batted ball" is a ball put in play (pitch_outcome_category = 'X').
+        -- We gate on that rather than exit_velocity_mph IS NOT NULL because
+        -- Statcast also records exit velocity on fouls, which are not in play.
+        avg(if(pitch_outcome_category = 'X', exit_velocity_mph, null)) as avg_exit_velocity_mph,
+        max(if(pitch_outcome_category = 'X', exit_velocity_mph, null)) as max_exit_velocity_mph,
+        avg(if(pitch_outcome_category = 'X', launch_angle_deg, null)) as avg_launch_angle_deg,
+        countif(pitch_outcome_category = 'X' and exit_velocity_mph >= 95) as hard_hit_count,
+        countif(pitch_outcome_category = 'X') as batted_balls,
+        countif(pitch_outcome_category = 'X' and launch_speed_angle = 6) as barrel_count,
 
         -- expected stats
         avg(xba) as avg_xba,
