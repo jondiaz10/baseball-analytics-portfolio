@@ -2,7 +2,7 @@
 
 **End-to-end analytics engineering project:** Statcast pitch data → GCP → BigQuery → dbt → Dashboard
 
-🟡 **In Progress** — ingestion pipeline and dbt models complete, dashboard in progress
+🟢 **Live** — ingestion pipeline, dbt models, and dashboard all complete
 
 ---
 
@@ -23,7 +23,7 @@ dbt mart layer (mart_batter_game_stats, mart_pitcher_game_stats)
         ↓
 dbt reporting layer (rpt_* views — pre-aggregated, BI-ready)
         ↓
-Data Studio Dashboard  [In Progress]
+Data Studio Dashboard  [Live]
 ```
 
 - **Ingestion** — A config-driven Python pipeline extracts Statcast data in weekly chunks, serializes it to parquet in memory, and streams it to GCS partitioned by `year` / `month`. It then appends to BigQuery via `WRITE_APPEND` (never truncates). A separate pipeline loads the Chadwick Bureau player ID registry.
@@ -40,7 +40,7 @@ Data Studio Dashboard  [In Progress]
 | Language | Python 3.12 | Ingestion pipeline |
 | Libraries | pybaseball, pyarrow, google-cloud-bigquery, google-cloud-bigquery-storage | Extract, serialize, load |
 | Testing | pytest (mocked API calls) | Pipeline unit tests |
-| BI | Data Studio | Dashboard *(in progress)* |
+| BI | Data Studio | Live dashboard on the `reporting` views |
 | Version control | GitHub | Source control |
 | AI assistant | Claude Code (Anthropic) | Development |
 
