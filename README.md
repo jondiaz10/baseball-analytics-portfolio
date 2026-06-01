@@ -93,9 +93,24 @@ baseball-analytics/
 
 - **258,154** pitches extracted (full 2026 season-to-date, Mar 27 – May 31)
 - **257,220** pitches in the cleaned staging layer (null pitch types filtered)
+- **44,709** batted balls (balls in play; tracked foul balls excluded)
 - **118** raw columns cleaned in the staging layer
 - **127,526** players in the reference table
 - **24/24** dbt tests passing
+
+### League KPIs (2026 season-to-date, denominator-weighted)
+
+| Metric | Value |
+|---|---|
+| Avg exit velocity | 88.2 mph |
+| Hard-hit rate (95+ mph) | 39.3% |
+| Barrel rate | 8.1% |
+| Avg xwOBA | .320 |
+| Avg pitch velocity | 89.5 mph |
+| Whiff rate | 23.0% |
+| Strike rate | 46.1% |
+
+> Batted-ball metrics are computed over balls in play only (`pitch_outcome_category = 'X'`). Statcast also records exit velocity on foul balls; counting those as batted balls had deflated league exit velocity to 82.7 mph and hard-hit rate to 24.6%, so the predicate was corrected upstream in the marts.
 
 ## dbt Models
 
