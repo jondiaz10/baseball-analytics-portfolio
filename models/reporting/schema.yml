@@ -1,0 +1,76 @@
+version: 2
+
+models:
+  - name: rpt_league_batting_kpis
+    description: >
+      League-wide batting KPIs as a single summary row (exit velocity, xwOBA,
+      hard-hit rate), denominator-weighted from mart_batter_game_stats. Feeds
+      dashboard scorecards.
+
+  - name: rpt_league_pitching_kpis
+    description: >
+      League-wide pitching KPIs as a single summary row (velocity, whiff rate,
+      strike pct), denominator-weighted from mart_pitcher_game_stats. Feeds
+      dashboard scorecards.
+
+  - name: rpt_batter_season
+    description: >
+      Season-to-date batting line per batter, denominator-weighted. One row per
+      batter_id, named via the player_lookup registry.
+    columns:
+      - name: batter_id
+        description: MLBAM player id (grain).
+        tests:
+          - not_null
+          - unique
+
+  - name: rpt_batter_game
+    description: >
+      Per-game batting detail (game-log / drill-down). One row per batter per
+      game. Carries the game's home/away teams only — see model comment on the
+      batter-team data gap.
+    columns:
+      - name: batter_id
+        description: MLBAM player id.
+        tests:
+          - not_null
+      - name: game_date
+        description: Date of the game.
+        tests:
+          - not_null
+
+  - name: rpt_pitcher_season
+    description: >
+      Season-to-date pitching line per pitcher, denominator-weighted. One row
+      per pitcher_id. Name/handedness come from the mart.
+    columns:
+      - name: pitcher_id
+        description: MLBAM player id (grain).
+        tests:
+          - not_null
+          - unique
+
+  - name: rpt_pitcher_pitch_mix
+    description: >
+      Pitch mix in long format. One row per pitcher per pitch type, with the
+      season pitch_pct re-weighted by total pitches.
+    columns:
+      - name: pitcher_id
+        description: MLBAM player id.
+        tests:
+          - not_null
+      - name: pitch_type
+        description: Normalized pitch-type label.
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - four_seam
+                - sinker
+                - cutter
+                - slider
+                - sweeper
+                - curveball
+                - changeup
+                - splitter
+                - other
