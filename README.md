@@ -187,9 +187,12 @@ dbt build
 
 ## Dashboard
 
-Live dashboard: `<DATA_STUDIO_LINK_TBD>` *(in progress)*
+**Live dashboard:** [MLB Statcast Analytics — 2026 Season](https://datastudio.google.com/reporting/31398e9c-bd7b-4a1b-b844-fc106e4eab72)
 
-Data Studio reads the `reporting` views directly. The dashboard has two tabs: a **Batting** tab (league KPI scorecards, a sortable season leaderboard, and per-game drill-down) and a **Pitching** tab (league KPI scorecards, a season leaderboard, and a per-pitcher pitch-mix breakdown).
+The dashboard has two tabs, both built on the dbt `reporting` views and connected live to BigQuery:
+
+- **Batter Performance** — league KPI scorecards (avg exit velocity, hard-hit %, xwOBA), a qualified-hitter leaderboard (min. 50 batted balls) sortable by xwOBA, and an exit-velocity vs. launch-angle bubble chart color-coded by xwOBA tier and sized by batted balls, visualizing where elite production clusters in the contact-quality space.
+- **Pitcher Arsenal** — league KPI scorecards (avg velocity, whiff %, strike %), a whiff-rate leaderboard (min. 250 pitches), and a pitch-mix breakdown that cross-filters from the leaderboard: click a pitcher to see their arsenal composition.
 
 ## Built For
 
@@ -197,4 +200,4 @@ This project demonstrates end-to-end analytics engineering — ingestion, ELT, w
 
 ## How This Was Built
 
-The codebase was developed with [Claude Code](https://claude.com/claude-code) as a pair-programming tool, working incrementally across the stack: the Python extraction/load pipeline, the dbt staging and mart models, and this BI-ready reporting layer. Each step followed the same loop — define the contract, implement against the real warehouse, then validate with `dbt test` and direct row-count and value checks in BigQuery before moving on. The result is a single, reviewable git history rather than generated boilerplate.
+This project was built with an AI-assisted workflow as a deliberate test of development velocity. Claude Code drove the extraction pipeline and dbt models; the reporting-layer SQL was AI-generated against the documented schema. The analytical judgment stayed human: during validation I flagged that league average exit velocity was reading 82.7 mph against a real-world ~88, traced it to tracked foul balls being miscounted as batted balls, and corrected the batted-ball predicate across both marts — restoring exit velocity to 88.2 mph and hard-hit rate to a realistic 39.3%. The takeaway: AI accelerates the build, but domain knowledge is what catches the bugs that pass every unit test.
