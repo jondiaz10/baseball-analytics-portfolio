@@ -8,18 +8,26 @@ from src.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
-def load_to_bigquery(gcs_uri: str, project: str, dataset: str, table: str) -> int:
+def load_to_bigquery(
+    gcs_uri: str,
+    project: str,
+    dataset: str,
+    table: str,
+    write_disposition: str = "WRITE_APPEND",
+) -> int:
     """Load a parquet file from GCS into a BigQuery table.
 
-    The load appends to the destination table (``WRITE_APPEND``) and lets
-    BigQuery autodetect the schema from the parquet file. Authentication is
-    handled by Application Default Credentials.
+    The load lets BigQuery autodetect the schema from the parquet file.
+    Authentication is handled by Application Default Credentials.
 
     Args:
         gcs_uri: Source object URI, e.g. ``gs://bucket/path/file.parquet``.
         project: GCP project that owns the destination dataset.
         dataset: BigQuery dataset name.
         table: Destination table name within ``dataset``.
+        write_disposition: BigQuery write disposition string. Defaults to
+            ``"WRITE_APPEND"`` (incremental load). Pass ``"WRITE_TRUNCATE"``
+            to wipe the table before loading (full refresh).
 
     Returns:
         The number of rows in the destination table after the load completes.
@@ -33,7 +41,7 @@ def load_to_bigquery(gcs_uri: str, project: str, dataset: str, table: str) -> in
 
         job_config = bigquery.LoadJobConfig(
             source_format=bigquery.SourceFormat.PARQUET,
-            write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
+            write_disposition=write_disposition,
             autodetect=True,
         )
 
@@ -43,7 +51,12 @@ def load_to_bigquery(gcs_uri: str, project: str, dataset: str, table: str) -> in
         load_job.result()  # Wait for completion; raises on failure.
 
         rows_loaded = load_job.output_rows or 0
-        logger.info("Loaded %d rows into %s", rows_loaded, table_ref)
+        logger.info(
+            "Loaded %d rows into %s (write_disposition=%s)",
+            rows_loaded,
+            table_ref,
+            write_disposition,
+        )
         return rows_loaded
     except Exception:
         logger.error("Failed to load %s into BigQuery", gcs_uri)
