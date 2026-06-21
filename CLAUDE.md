@@ -11,7 +11,15 @@ A **dbt + BigQuery** baseball analytics project with two layers:
 
 `google-genai` / `google-cloud-aiplatform` (Vertex AI) are available for GenAI work but nothing uses them yet.
 
-The dbt project lives at the **repo root** (not in a subdirectory): `dbt_project.yml`, `models/`, `macros/`, `seeds/`, `snapshots/`, `tests/`, `analyses/`. The starter example models have been removed — `models/` is currently empty, so this is a blank modeling slate.
+The dbt project lives at the **repo root** (not in a subdirectory): `dbt_project.yml`, `models/`, `macros/`, `seeds/`, `snapshots/`, `tests/`, `analyses/`. The model layer is built out: **9 models** — `staging/` (1 view, `stg_statcast_pitches`), `marts/` (2 tables, batter and pitcher per-game stats), and `reporting/` (6 BI-ready views) — with **24 dbt tests** passing. See the README for the full model/grain inventory.
+
+## Session memory & Notion discipline
+
+- **At session start:** read **`NEXT.md`** (repo root, gitignored) — the working-memory source of truth for current state and what to do next.
+- **At the end of any meaningful unit of work:**
+  1. **Update `NEXT.md`** — refresh current state, check off completed items, add new next-steps and gotchas. Convert relative dates to absolute.
+  2. **Reconcile Notion** (Tasks DB) — close tickets for completed work, create tickets for new next-steps, and log progress. **Read** Notion via the Notion MCP tools; **write** via the guarded notion client (do not write directly through the raw MCP write tools).
+- Keep the two in sync: `NEXT.md` is the fast local mirror, Notion is the shared record.
 
 ## Environment
 
@@ -43,7 +51,7 @@ Both `--start-date` and `--end-date` (YYYY-MM-DD, inclusive) are required. The s
 Module layout (`src/`):
 - `extract/statcast_extract.py` — `extract_statcast(start, end, chunk_size_days=7)`. Pulls in weekly chunks to respect Baseball Savant rate limits, concatenates, returns a DataFrame. pybaseball's on-disk cache is **disabled** at import (`pybaseball.cache.disable()`) because Statcast data is revised after the fact; do not re-enable it or use the batter/pitcher cache helpers.
 - `load/gcs_loader.py` — `upload_to_gcs(...)`. Serializes to parquet **in memory** (pyarrow) and streams to GCS; never writes to local disk. Object path partitions by start-date: `statcast/year={YYYY}/month={MM}/statcast_{start}_{end}.parquet`. Returns the `gs://` URI.
-- `load/bq_loader.py` — `load_to_bigquery(...)`. Loads the GCS parquet with `WRITE_APPEND` + schema autodetect (never `WRITE_TRUNCATE`). Returns rows loaded.
+- `load/bq_loader.py` — `load_to_bigquery(...)`. Loads the GCS parquet with schema autodetect. The write disposition comes from `run_pipeline.py`'s `--mode` flag: `append` (default) → `WRITE_APPEND`; `full-refresh` → `WRITE_TRUNCATE`. Returns rows loaded. (`run_player_lookup.py` always uses `WRITE_TRUNCATE`.)
 - `utils/logger.py` — `get_logger(name)`, stdout, `timestamp | level | message`.
 
 Config keys live under `gcs:`, `bigquery:`, and `extract:` in `config/pipeline_config.yaml`. The destination is `<bigquery.project>.<bigquery.raw_dataset>.<bigquery.table>` (currently `baseball-analytics-portfolio.raw.statcast_pitches`) — that dataset and the GCS bucket must already exist; the pipeline does not create them.
@@ -85,5 +93,4 @@ dbt docs generate && dbt docs serve
 
 ## Conventions
 
-- Project-wide default materialization is **`view`** (`models:` block in `dbt_project.yml`); override per-model with `{{ config(materialized='table') }}` or per-folder in `dbt_project.yml`.
-- Until at least one model exists, `dbt parse` warns about the unused `models.baseball_analytics` config path — expected, harmless, and clears once a model is added.
+- Project-wide default materialization is **`view`** (`models:` block in `dbt_project.yml`); per-folder overrides set `marts` to `table` (staging and reporting stay `view`). Override per-model with `{{ config(materialized='table') }}` as needed.
