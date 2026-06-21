@@ -2,7 +2,7 @@
 
 **End-to-end analytics engineering project:** Statcast pitch data → GCP → BigQuery → dbt → Power BI
 
-🟢 **Live** — ingestion pipeline and dbt models complete (24/24 tests passing); Power BI is the primary BI build with the **Batter Performance** tab complete (Pitcher tab in progress). Data Studio remains a public demo.
+🟢 **Live** — ingestion pipeline and dbt models complete (36/36 tests passing); Power BI is the primary BI build with the **Batter Performance** tab complete (Pitcher tab in progress). Data Studio remains a public demo.
 
 ---
 
@@ -13,21 +13,28 @@ This project pulls pitch-level [Statcast](https://baseballsavant.mlb.com/) data 
 ## Architecture
 
 ```text
-Baseball Savant API → Python (pybaseball) → GCP Cloud Storage (parquet)
+Baseball Savant (Statcast) · MLB Stats API (teams/rosters/status) · Chadwick Bureau (player IDs)
+        ↓  Python ingestion (pybaseball · statsapi · registry CSVs)
+GCS parquet (Statcast)  +  direct DataFrame loads (reference tables)
         ↓
-BigQuery raw layer (statcast_pitches, player_lookup)
+BigQuery raw layer
+  statcast_pitches · player_lookup · mlb_teams · mlb_rosters · mlb_roster_status
         ↓
-dbt staging layer (stg_statcast_pitches)
+dbt staging (views)
+  stg_statcast_pitches · stg_mlb_teams · stg_mlb_rosters · stg_mlb_roster_status
         ↓
-dbt mart layer (mart_batter_game_stats, mart_pitcher_game_stats)
+dbt marts (tables)
+  mart_batter_game_stats · mart_pitcher_game_stats · dim_team · dim_roster_status
         ↓
-dbt reporting layer (rpt_* views — pre-aggregated, BI-ready)
+dbt reporting (views)
+  rpt_* — pre-aggregated, BI-ready (+ team_* and availability columns)
         ↓
 Power BI  [primary, live]   ·   Data Studio  [public demo]
 ```
 
-- **Ingestion** — A config-driven Python pipeline extracts Statcast data in weekly chunks, serializes it to parquet in memory, and streams it to GCS partitioned by `year` / `month`. It then appends to BigQuery via `WRITE_APPEND` (never truncates). A separate pipeline loads the Chadwick Bureau player ID registry.
+- **Ingestion** — A config-driven Python pipeline extracts Statcast data in weekly chunks, serializes it to parquet in memory, and streams it to GCS partitioned by `year` / `month`. It then loads to BigQuery (`WRITE_APPEND` by default; `--mode full-refresh` truncates). Separate config-driven pipelines load the Chadwick Bureau player ID registry and the MLB Stats API team / roster / status reference tables (direct DataFrame loads, no GCS).
 - **Transformation** — dbt models clean and reshape the raw pitch data into a staging layer, then aggregate to per-game mart tables for batters and pitchers.
+- **Dimensions** — Two conformed dimensions from the MLB Stats API, joined on `mlbam_id`: **`dim_team`** (30 clubs — league / division / venue) and **`dim_roster_status`** (the full rostered player population with an `availability` label — Active / IL — 10/15/60-Day / Minors / Rehab — plus `is_active` / `is_injured`, deduped to one MLB-facing status per player). Team attributes attach to every `rpt_*` model. **Status attaches as a label only** (`availability` + `status_description`) with **no null-stat rows**: the fact grain stays clean, and the full roster — including absent / injured players who have no stats — lives in `dim_roster_status`, recoverable per-visual in Power BI via a `LEFT JOIN`. A deliberate grain-preservation choice — surface missing players *from the dimension* rather than polluting the stat models with nulls.
 - **Reporting** — A thin layer of pre-aggregated dbt **views** (`reporting` dataset) that the BI tools read directly: league KPI scorecards, season-to-date batter and pitcher lines, per-game detail, and pitch mix. All rate stats are denominator-weighted (never an average of averages).
 - **BI** — **Power BI** is the primary build, connected live to BigQuery; its DAX measures are reconciled to the dbt models to the decimal so the dashboard and warehouse never disagree. **Data Studio** is kept as a public demo on the same `reporting` views.
 
@@ -39,7 +46,7 @@ Power BI  [primary, live]   ·   Data Studio  [public demo]
 | Cloud | GCP — Cloud Storage | Parquet landing zone |
 | Transformation | dbt-core 1.11.11 + dbt-bigquery 1.11.1 | ELT modeling, testing, docs |
 | Language | Python 3.12 | Ingestion pipeline |
-| Libraries | pybaseball, pyarrow, google-cloud-bigquery, google-cloud-bigquery-storage | Extract, serialize, load |
+| Libraries | pybaseball, requests (MLB Stats API), pyarrow, google-cloud-bigquery, google-cloud-bigquery-storage | Extract, serialize, load |
 | Testing | pytest (mocked API calls) | Pipeline unit tests |
 | BI (primary) | Power BI (DAX measures reconciled to dbt) | Primary dashboard on the `reporting` views — live BigQuery connection |
 | BI (demo) | Data Studio | Public demo dashboard on the `reporting` views |
@@ -55,7 +62,8 @@ baseball-analytics/
 ├── src/                             # ingestion package
 │   ├── extract/
 │   │   ├── statcast_extract.py      # pull Statcast in weekly chunks
-│   │   └── player_lookup_extract.py # pull Chadwick Bureau registry
+│   │   ├── player_lookup_extract.py # pull Chadwick Bureau registry
+│   │   └── mlb_team_extract.py      # pull MLB Stats API teams/rosters/status
 │   ├── load/
 │   │   ├── gcs_loader.py            # serialize to parquet → GCS (in memory)
 │   │   └── bq_loader.py             # GCS parquet → BigQuery (WRITE_APPEND)
@@ -63,15 +71,21 @@ baseball-analytics/
 │       └── logger.py
 ├── scripts/
 │   ├── run_pipeline.py              # entry point: Statcast ingestion
-│   └── run_player_lookup.py         # entry point: player lookup ingestion
+│   ├── run_player_lookup.py         # entry point: player lookup ingestion
+│   └── run_team_data.py             # entry point: MLB teams/rosters/status
 ├── models/                          # dbt project (lives at repo root)
 │   ├── staging/
 │   │   ├── stg_statcast_pitches.sql
+│   │   ├── stg_mlb_teams.sql
+│   │   ├── stg_mlb_rosters.sql
+│   │   ├── stg_mlb_roster_status.sql
 │   │   ├── sources.yml
 │   │   └── schema.yml
 │   ├── marts/
 │   │   ├── mart_batter_game_stats.sql
 │   │   ├── mart_pitcher_game_stats.sql
+│   │   ├── dim_team.sql              # team dimension (30 clubs)
+│   │   ├── dim_roster_status.sql     # roster/availability dimension
 │   │   └── schema.yml
 │   └── reporting/                   # BI-ready pre-aggregated views
 │       ├── rpt_league_batting_kpis.sql
@@ -98,7 +112,8 @@ baseball-analytics/
 - **44,709** batted balls (balls in play; tracked foul balls excluded)
 - **118** raw columns cleaned in the staging layer
 - **127,526** players in the reference table
-- **24/24** dbt tests passing
+- **30** MLB teams + **8,189** rostered players (team & availability dimensions)
+- **36/36** dbt tests passing
 
 ### League KPIs (2026 season-to-date, denominator-weighted)
 
@@ -119,14 +134,19 @@ baseball-analytics/
 | Model | Layer | Grain | Description |
 | --- | --- | --- | --- |
 | `stg_statcast_pitches` | staging | one row per pitch | Cleans 118 raw columns, casts `game_date` integer → DATE, drops deprecated columns, renames for clarity, filters null pitch types — 257,220 rows |
+| `stg_mlb_teams` | staging | team | Cleans MLB Stats API teams (league / division / venue) — 30 rows |
+| `stg_mlb_rosters` | staging | player | 40-man player → team map, deduped to one current team per player |
+| `stg_mlb_roster_status` | staging | player | fullRoster availability (Active / IL / Minors …) + `is_active`/`is_injured`, deduped — 8,189 rows |
 | `mart_batter_game_stats` | mart | batter × game | Exit velocity, xwOBA, hard-hit rate, barrel rate, bat speed, and swing metrics — 17,778 rows |
 | `mart_pitcher_game_stats` | mart | pitcher × game | Velocity, whiff rate, strike %, pitch-mix percentages (9 pitch types), hard-hit-allowed rate — 7,389 rows |
+| `dim_team` | mart | team | Conformed team dimension (league / division / venue) — 30 rows |
+| `dim_roster_status` | mart | player | Full rostered population + `availability` label, independent of stats — 8,189 rows |
 | `rpt_league_batting_kpis` | reporting | 1 row | League exit velocity, xwOBA, hard-hit rate (denominator-weighted) |
-| `rpt_batter_season` | reporting | batter | Season-to-date batting line, named via player_lookup — 530 rows |
-| `rpt_batter_game` | reporting | batter × game | Per-game batting detail for drill-down — 17,778 rows |
+| `rpt_batter_season` | reporting | batter | Season-to-date batting line, named via player_lookup; + current team & availability — 530 rows |
+| `rpt_batter_game` | reporting | batter × game | Per-game batting detail for drill-down; + current team & availability — 17,778 rows |
 | `rpt_league_pitching_kpis` | reporting | 1 row | League velocity, whiff rate, strike % (denominator-weighted) |
-| `rpt_pitcher_season` | reporting | pitcher | Season-to-date pitching line — 654 rows |
-| `rpt_pitcher_pitch_mix` | reporting | pitcher × pitch type | Long-format pitch mix, weighted by pitches — 5,886 rows |
+| `rpt_pitcher_season` | reporting | pitcher | Season-to-date pitching line; + current team & availability — 654 rows |
+| `rpt_pitcher_pitch_mix` | reporting | pitcher × pitch type | Long-format pitch mix, weighted by pitches; + current team & availability — 5,886 rows |
 
 All reporting models are **views** in a dedicated `reporting` BigQuery dataset, so the BI layer reads pre-shaped, pre-aggregated data with no in-dashboard math.
 
@@ -173,6 +193,9 @@ python scripts/run_pipeline.py --start-date 2026-03-27 --end-date 2026-05-31 --m
 
 # Reference table (Chadwick Bureau player registry)
 python scripts/run_player_lookup.py
+
+# Reference tables (MLB Stats API: teams, rosters, availability/status)
+python scripts/run_team_data.py
 ```
 
 **Run the dbt models and tests:**
@@ -187,6 +210,7 @@ dbt build
 | --- | --- | --- |
 | [Baseball Savant](https://baseballsavant.mlb.com/) (Statcast) | Pitch-level tracking data | `pybaseball` |
 | [Chadwick Bureau](https://github.com/chadwickbureau/register) | Player ID registry (127,526 players) | GitHub CSV |
+| [MLB Stats API](https://statsapi.mlb.com/) | Teams, 40-man + full rosters, player availability/status | REST (`statsapi.mlb.com`, no auth) |
 
 ## Dashboards
 
