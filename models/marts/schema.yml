@@ -73,3 +73,16 @@ models:
         tests:
           - not_null
           - unique
+
+  - name: dim_roster_status
+    description: >
+      Roster / availability dimension — the FULL rostered player population
+      (one row per mlbam_id), independent of Statcast stats, so absent / injured
+      players are never silently dropped. Not joined into the stat marts; the
+      rpt_* models only attach a status label to players who already have stats.
+    columns:
+      - name: mlbam_id
+        description: "MLBAM player id (joins to batter_id / pitcher_id)"
+        tests:
+          - not_null
+          - unique

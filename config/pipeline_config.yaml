@@ -24,3 +24,6 @@ reference_tables:
   mlb_rosters:
     dataset: raw
     table: mlb_rosters
+  mlb_roster_status:
+    dataset: raw
+    table: mlb_roster_status

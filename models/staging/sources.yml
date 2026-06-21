@@ -21,3 +21,8 @@ sources:
         description: >
           MLB 40-man rosters from the MLB Stats API — the player -> team
           mapping, keyed on mlbam_id. Full refresh on each pipeline run.
+      - name: mlb_roster_status
+        description: >
+          MLB fullRoster feed from the MLB Stats API — every rostered player
+          with availability status (Active / IL flavors / Minors / etc.), keyed
+          on mlbam_id. The full population incl. 60-Day IL. Full refresh each run.

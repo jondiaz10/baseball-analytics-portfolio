@@ -86,3 +86,18 @@ models:
         description: "MLB Stats API team id the player currently rosters with"
         tests:
           - not_null
+
+  - name: stg_mlb_roster_status
+    description: >
+      Full rostered population with availability status from the MLB Stats API
+      fullRoster feed, de-duplicated to one (MLB-facing) status per player.
+    columns:
+      - name: mlbam_id
+        description: "MLBAM player id (joins to batter_id / pitcher_id)"
+        tests:
+          - not_null
+          - unique
+      - name: availability
+        description: "Clean availability label (Active / IL — 10-Day / Minors / ...)"
+        tests:
+          - not_null

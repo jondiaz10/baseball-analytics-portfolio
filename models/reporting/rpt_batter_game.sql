@@ -41,6 +41,13 @@ teams as (
         division_name
     from {{ ref('dim_team') }}
 
+),
+
+status as (
+
+    select mlbam_id, availability, status_description
+    from {{ ref('dim_roster_status') }}
+
 )
 
 select
@@ -51,6 +58,8 @@ select
     t.team_name,
     t.league_name,
     t.division_name,
+    s.availability,
+    s.status_description,
     bg.game_date,
     bg.home_team,
     bg.away_team,
@@ -68,3 +77,4 @@ from batter_games bg
 left join players p on bg.batter_id = p.mlbam_id
 left join roster r on bg.batter_id = r.mlbam_id
 left join teams t on r.team_id = t.team_id
+left join status s on bg.batter_id = s.mlbam_id

@@ -37,6 +37,13 @@ teams as (
 
 ),
 
+status as (
+
+    select mlbam_id, availability, status_description
+    from {{ ref('dim_roster_status') }}
+
+),
+
 aggregated as (
 
     select
@@ -83,6 +90,8 @@ select
     t.team_name,
     t.league_name,
     t.division_name,
+    s.availability,
+    s.status_description,
     a.games,
     a.plate_appearances,
     a.at_bats,
@@ -104,3 +113,4 @@ from aggregated a
 left join players p on a.batter_id = p.mlbam_id
 left join roster r on a.batter_id = r.mlbam_id
 left join teams t on r.team_id = t.team_id
+left join status s on a.batter_id = s.mlbam_id

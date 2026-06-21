@@ -44,10 +44,16 @@ def run() -> None:
     bq_project = config["bigquery"]["project"]
     teams_cfg = config["reference_tables"]["mlb_teams"]
     rosters_cfg = config["reference_tables"]["mlb_rosters"]
+    status_cfg = config["reference_tables"]["mlb_roster_status"]
 
     teams_df = extract_teams()
     team_ids = teams_df["team_id"].dropna().astype("int64").tolist()
-    rosters_df = extract_rosters(team_ids)
+
+    # 40-man roster drives the player -> team mapping (dim_team join).
+    rosters_df = extract_rosters(team_ids, roster_type="40Man")
+    # fullRoster carries every rostered player WITH status (incl. 60-Day IL,
+    # who are dropped from the 40-man), driving the roster/status dimension.
+    status_df = extract_rosters(team_ids, roster_type="fullRoster")
 
     teams_loaded = load_dataframe_to_bigquery(
         teams_df,
@@ -63,34 +69,50 @@ def run() -> None:
         table=rosters_cfg["table"],
         write_disposition=_WRITE_DISPOSITION,
     )
+    status_loaded = load_dataframe_to_bigquery(
+        status_df,
+        project=bq_project,
+        dataset=status_cfg["dataset"],
+        table=status_cfg["table"],
+        write_disposition=_WRITE_DISPOSITION,
+    )
 
     _print_summary(
         teams_extracted=len(teams_df),
         rosters_extracted=len(rosters_df),
+        status_extracted=len(status_df),
         teams_destination=f"{bq_project}.{teams_cfg['dataset']}.{teams_cfg['table']}",
         rosters_destination=f"{bq_project}.{rosters_cfg['dataset']}.{rosters_cfg['table']}",
+        status_destination=f"{bq_project}.{status_cfg['dataset']}.{status_cfg['table']}",
         teams_loaded=teams_loaded,
         rosters_loaded=rosters_loaded,
+        status_loaded=status_loaded,
     )
 
 
 def _print_summary(
     teams_extracted: int,
     rosters_extracted: int,
+    status_extracted: int,
     teams_destination: str,
     rosters_destination: str,
+    status_destination: str,
     teams_loaded: int,
     rosters_loaded: int,
+    status_loaded: int,
 ) -> None:
     """Print a human-readable run summary to stdout.
 
     Args:
         teams_extracted: Rows returned by the teams extract.
-        rosters_extracted: Rows returned by the rosters extract.
+        rosters_extracted: Rows returned by the 40-man rosters extract.
+        status_extracted: Rows returned by the fullRoster status extract.
         teams_destination: Fully qualified BigQuery destination for teams.
         rosters_destination: Fully qualified BigQuery destination for rosters.
+        status_destination: Fully qualified BigQuery destination for roster status.
         teams_loaded: Rows loaded into the teams table.
         rosters_loaded: Rows loaded into the rosters table.
+        status_loaded: Rows loaded into the roster status table.
     """
     print("\n=== MLB Team Data Pipeline ===")
     print(f"Teams extracted:   {teams_extracted}")
@@ -99,6 +121,9 @@ def _print_summary(
     print(f"Rosters extracted: {rosters_extracted} (40-man)")
     print(f"Loaded to:         {rosters_destination}")
     print(f"Rows loaded:       {rosters_loaded}")
+    print(f"Status extracted:  {status_extracted} (fullRoster, with status)")
+    print(f"Loaded to:         {status_destination}")
+    print(f"Rows loaded:       {status_loaded}")
     print(f"Write mode:        {_WRITE_DISPOSITION} (full refresh)")
 
 
