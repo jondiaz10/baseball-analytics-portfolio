@@ -134,7 +134,7 @@ flowchart TB
 ## Layers
 
 | Layer | Tech | Role |
-|-------|------|------|
+| ----- | ---- | ---- |
 | **Sources** | Baseball Savant, Chadwick Bureau | Pitch-level Statcast events + player ID registry |
 | **Ingestion** | Python 3.12 (`src/`, `scripts/`) | Extract → GCS (Parquet) → BigQuery `raw` |
 | **Storage** | GCS + BigQuery `raw` | Partitioned Parquet landing zone; append-only raw tables |
