@@ -1,8 +1,8 @@
 # Baseball Analytics Portfolio
 
-**End-to-end analytics engineering project:** Statcast pitch data → GCP → BigQuery → dbt → Dashboard
+**End-to-end analytics engineering project:** Statcast pitch data → GCP → BigQuery → dbt → Power BI
 
-🟢 **Live** — ingestion pipeline, dbt models, and dashboard all complete
+🟢 **Live** — ingestion pipeline and dbt models complete (24/24 tests passing); Power BI is the primary BI build with the **Batter Performance** tab complete (Pitcher tab in progress). Data Studio remains a public demo.
 
 ---
 
@@ -12,7 +12,7 @@ This project pulls pitch-level [Statcast](https://baseballsavant.mlb.com/) data 
 
 ## Architecture
 
-```
+```text
 Baseball Savant API → Python (pybaseball) → GCP Cloud Storage (parquet)
         ↓
 BigQuery raw layer (statcast_pitches, player_lookup)
@@ -23,30 +23,32 @@ dbt mart layer (mart_batter_game_stats, mart_pitcher_game_stats)
         ↓
 dbt reporting layer (rpt_* views — pre-aggregated, BI-ready)
         ↓
-Data Studio Dashboard  [Live]
+Power BI  [primary, live]   ·   Data Studio  [public demo]
 ```
 
 - **Ingestion** — A config-driven Python pipeline extracts Statcast data in weekly chunks, serializes it to parquet in memory, and streams it to GCS partitioned by `year` / `month`. It then appends to BigQuery via `WRITE_APPEND` (never truncates). A separate pipeline loads the Chadwick Bureau player ID registry.
 - **Transformation** — dbt models clean and reshape the raw pitch data into a staging layer, then aggregate to per-game mart tables for batters and pitchers.
-- **Reporting** — A thin layer of pre-aggregated dbt **views** (`reporting` dataset) that the BI tool reads directly: league KPI scorecards, season-to-date batter and pitcher lines, per-game detail, and pitch mix. All rate stats are denominator-weighted (never an average of averages).
+- **Reporting** — A thin layer of pre-aggregated dbt **views** (`reporting` dataset) that the BI tools read directly: league KPI scorecards, season-to-date batter and pitcher lines, per-game detail, and pitch mix. All rate stats are denominator-weighted (never an average of averages).
+- **BI** — **Power BI** is the primary build, connected live to BigQuery; its DAX measures are reconciled to the dbt models to the decimal so the dashboard and warehouse never disagree. **Data Studio** is kept as a public demo on the same `reporting` views.
 
 ## Stack
 
 | Layer | Tool | Purpose |
-|---|---|---|
+| --- | --- | --- |
 | Cloud | GCP — BigQuery | Data warehouse (raw, staging, marts, reporting) |
 | Cloud | GCP — Cloud Storage | Parquet landing zone |
 | Transformation | dbt-core 1.11.11 + dbt-bigquery 1.11.1 | ELT modeling, testing, docs |
 | Language | Python 3.12 | Ingestion pipeline |
 | Libraries | pybaseball, pyarrow, google-cloud-bigquery, google-cloud-bigquery-storage | Extract, serialize, load |
 | Testing | pytest (mocked API calls) | Pipeline unit tests |
-| BI | Data Studio | Live dashboard on the `reporting` views |
+| BI (primary) | Power BI (DAX measures reconciled to dbt) | Primary dashboard on the `reporting` views — live BigQuery connection |
+| BI (demo) | Data Studio | Public demo dashboard on the `reporting` views |
 | Version control | GitHub | Source control |
 | AI assistant | Claude Code (Anthropic) | Development |
 
 ## Project Structure
 
-```
+```text
 baseball-analytics/
 ├── config/
 │   └── pipeline_config.yaml         # bucket / project / dataset config (no hardcoded names)
@@ -101,7 +103,7 @@ baseball-analytics/
 ### League KPIs (2026 season-to-date, denominator-weighted)
 
 | Metric | Value |
-|---|---|
+| --- | --- |
 | Avg exit velocity | 88.2 mph |
 | Hard-hit rate (95+ mph) | 39.3% |
 | Barrel rate | 8.1% |
@@ -115,7 +117,7 @@ baseball-analytics/
 ## dbt Models
 
 | Model | Layer | Grain | Description |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `stg_statcast_pitches` | staging | one row per pitch | Cleans 118 raw columns, casts `game_date` integer → DATE, drops deprecated columns, renames for clarity, filters null pitch types — 257,220 rows |
 | `mart_batter_game_stats` | mart | batter × game | Exit velocity, xwOBA, hard-hit rate, barrel rate, bat speed, and swing metrics — 17,778 rows |
 | `mart_pitcher_game_stats` | mart | pitcher × game | Velocity, whiff rate, strike %, pitch-mix percentages (9 pitch types), hard-hit-allowed rate — 7,389 rows |
@@ -130,12 +132,13 @@ All reporting models are **views** in a dedicated `reporting` BigQuery dataset, 
 
 ## Setup
 
-**Prerequisites**
+### Prerequisites
+
 - Python 3.12
 - A GCP project with BigQuery + Cloud Storage enabled
 - `gcloud` CLI authenticated (Application Default Credentials)
 
-**Steps**
+### Steps
 
 ```bash
 # 1. Clone
@@ -181,18 +184,24 @@ dbt build
 ## Data Sources
 
 | Source | Data | Access |
-|---|---|---|
+| --- | --- | --- |
 | [Baseball Savant](https://baseballsavant.mlb.com/) (Statcast) | Pitch-level tracking data | `pybaseball` |
 | [Chadwick Bureau](https://github.com/chadwickbureau/register) | Player ID registry (127,526 players) | GitHub CSV |
 
-## Dashboard
+## Dashboards
 
-**Live dashboard:** [MLB Statcast Analytics — 2026 Season](https://datastudio.google.com/reporting/31398e9c-bd7b-4a1b-b844-fc106e4eab72)
+### Power BI — primary build
 
-The dashboard has two tabs, both built on the dbt `reporting` views and connected live to BigQuery:
+Connected live to BigQuery through the `reporting` views. The DAX measures are reconciled to the dbt models to the decimal, so the dashboard and the warehouse never disagree on a number.
 
-- **Batter Performance** — league KPI scorecards (avg exit velocity, hard-hit %, xwOBA), a qualified-hitter leaderboard (min. 50 batted balls) sortable by xwOBA, and an exit-velocity vs. launch-angle bubble chart color-coded by xwOBA tier and sized by batted balls, visualizing where elite production clusters in the contact-quality space.
-- **Pitcher Arsenal** — league KPI scorecards (avg velocity, whiff %, strike %), a whiff-rate leaderboard (min. 250 pitches), and a pitch-mix breakdown that cross-filters from the leaderboard: click a pitcher to see their arsenal composition.
+- **Batter Performance** *(complete)* — league KPI scorecards (avg exit velocity, hard-hit %, xwOBA), a qualified-hitter leaderboard (min. 50 batted balls) sortable by xwOBA, and an exit-velocity vs. launch-angle scatter color-coded by xwOBA tier and sized by batted balls, visualizing where elite production clusters in the contact-quality space.
+- **Pitcher Performance** *(in progress)* — will mirror the batter tab: league KPI scorecards (avg velocity, whiff %, strike %), a whiff-rate leaderboard (min. 250 pitches), and a cross-filtering pitch-mix breakdown.
+
+> **Published link:** *Power BI Service publish pending* (`<POWER_BI_LINK_TBD>`) — awaiting an M365 Developer tenant.
+
+### Data Studio — public demo
+
+A public, no-login demo on the same `reporting` views: **[MLB Statcast Analytics — 2026 Season](<DATA_STUDIO_LINK_TBD>)**.
 
 ## Built For
 
@@ -201,3 +210,5 @@ This project demonstrates end-to-end analytics engineering — ingestion, ELT, w
 ## How This Was Built
 
 This project was built with an AI-assisted workflow as a deliberate test of development velocity. Claude Code drove the extraction pipeline and dbt models; the reporting-layer SQL was AI-generated against the documented schema. The analytical judgment stayed human: during validation I flagged that league average exit velocity was reading 82.7 mph against a real-world ~88, traced it to tracked foul balls being miscounted as batted balls, and corrected the batted-ball predicate across both marts — restoring exit velocity to 88.2 mph and hard-hit rate to a realistic 39.3%. The takeaway: AI accelerates the build, but domain knowledge is what catches the bugs that pass every unit test.
+
+The same rigor carries into the BI layer: in Power BI, every DAX measure on the Batter Performance tab is reconciled against its dbt counterpart to the decimal, so the warehouse and the dashboard can never quietly drift apart.
