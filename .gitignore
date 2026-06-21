@@ -8,3 +8,4 @@ dbt_packages/
 logs/
 .claude/settings.local.json
 .agents/
+NEXT.md
