@@ -2,7 +2,8 @@
 
 End-to-end architecture of the baseball analytics portfolio: a Python ELT pipeline
 that ingests pitch-level Statcast data into BigQuery, dbt models that transform it
-into BI-ready layers, and Looker / Looker Studio for visualization.
+into BI-ready layers, and **Power BI** as the primary dashboard — with a LookML
+semantic-model sample and a public Data Studio demo.
 
 > The standalone diagram source lives in [`architecture.mmd`](./architecture.mmd).
 > This diagram uses the `elk` layout engine — it renders in the Mermaid Chart
@@ -29,7 +30,7 @@ flowchart TB
             direction TB
             EXTRACT("extract_statcast()\n7-day chunks, rate-limited")
             GCSUP("upload_to_gcs()\nin-memory Parquet (PyArrow)")
-            BQLOAD("load_to_bigquery()\nWRITE_APPEND + autodetect")
+            BQLOAD("load_to_bigquery()\nautodetect · --mode append→WRITE_APPEND / full-refresh→WRITE_TRUNCATE")
         end
         subgraph INGEST_PLAYER["Player Lookup Flow"]
             direction TB
@@ -71,8 +72,9 @@ flowchart TB
 
     subgraph BI["📊 Business Intelligence"]
         direction LR
-        LOOKER["Looker (LookML)\nbatter / pitcher explores + player dim"]
-        STUDIO["Looker Studio Dashboard\nBatter Perf · Pitcher Arsenal"]
+        POWERBI["Power BI  ▸ PRIMARY (live)\nBatter tab · DAX measures reconciled to dbt"]
+        STUDIO["Data Studio  ▸ public demo\nBatter Perf · Pitcher Arsenal"]
+        LOOKML["LookML semantic model  ▸ sample\nbatter / pitcher explores + player dim\n(no live Looker instance — by choice)"]
     end
 
     SAVANT --> EXTRACT --> GCSUP --> PARQUET --> BQLOAD --> RAWPITCH
@@ -91,11 +93,19 @@ flowchart TB
 
     RAWPLAYER -.player names.-> RBSEASON
     RAWPLAYER -.player names.-> RPSEASON
-    RAWPLAYER -.player dim.-> LOOKER
 
-    MBATTER --> LOOKER
-    MPITCHER --> LOOKER
+    %% Data Studio (public demo) reads the pre-aggregated reporting views
     RBKPI & RBSEASON & RBGAME & RPKPI & RPSEASON & RPMIX --> STUDIO
+
+    %% Power BI (primary) reads the per-game marts; DAX measures reconciled to dbt
+    MBATTER --> POWERBI
+    MPITCHER --> POWERBI
+    RAWPLAYER -.player dim.-> POWERBI
+
+    %% LookML semantic-model sample reads the same marts + player dimension
+    MBATTER --> LOOKML
+    MPITCHER --> LOOKML
+    RAWPLAYER -.player dim.-> LOOKML
 
     classDef default fill:#f5f5f5,stroke:#999999,stroke-width:1px,color:#333333;
     classDef source fill:#e8f0fe,stroke:#4285f4,stroke-width:2px,color:#174ea6;
@@ -112,12 +122,13 @@ flowchart TB
     class STGPITCH staging;
     class MBATTER,MPITCHER mart;
     class RBKPI,RBSEASON,RBGAME,RPKPI,RPSEASON,RPMIX report;
-    class LOOKER,STUDIO bi;
+    class POWERBI,STUDIO,LOOKML bi;
 
     linkStyle default stroke:#999999,stroke-width:1px;
-    linkStyle 15 stroke:#8e24aa,stroke-width:2px,stroke-dasharray:5;
-    linkStyle 16 stroke:#8e24aa,stroke-width:2px,stroke-dasharray:5;
     linkStyle 17 stroke:#8e24aa,stroke-width:2px,stroke-dasharray:5;
+    linkStyle 18 stroke:#8e24aa,stroke-width:2px,stroke-dasharray:5;
+    linkStyle 27 stroke:#8e24aa,stroke-width:2px,stroke-dasharray:5;
+    linkStyle 30 stroke:#8e24aa,stroke-width:2px,stroke-dasharray:5;
 ```
 
 ## Layers
@@ -128,4 +139,6 @@ flowchart TB
 | **Ingestion** | Python 3.12 (`src/`, `scripts/`) | Extract → GCS (Parquet) → BigQuery `raw` |
 | **Storage** | GCS + BigQuery `raw` | Partitioned Parquet landing zone; append-only raw tables |
 | **Transformation** | dbt + BigQuery | `staging` (views) → `marts` (tables) → `reporting` (views) |
-| **BI** | Looker (LookML) + Looker Studio | Explores, leaderboards, KPI scorecards, pitch-mix |
+| **BI (primary)** | Power BI (DAX reconciled to dbt) | Live primary build — KPI cards, leaderboards, EV-vs-launch-angle scatter |
+| **BI (demo)** | Data Studio | Public no-login demo on the `reporting` views |
+| **BI (sample)** | LookML semantic model | Alternative semantic-model sample — batter/pitcher explores + player dim (no live Looker instance, by choice) |
