@@ -18,3 +18,9 @@ reference_tables:
   player_lookup:
     dataset: raw
     table: player_lookup
+  mlb_teams:
+    dataset: raw
+    table: mlb_teams
+  mlb_rosters:
+    dataset: raw
+    table: mlb_rosters

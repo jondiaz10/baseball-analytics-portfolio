@@ -62,3 +62,14 @@ models:
         description: "Percentage of pitches that are strikes"
       - name: hard_hit_allowed_rate
         description: "Rate of batted balls >= 95 mph against this pitcher"
+
+  - name: dim_team
+    description: >
+      Conformed team dimension (one row per team_id) for slicing batter /
+      pitcher reporting by team, league, and division.
+    columns:
+      - name: team_id
+        description: "MLB Stats API team id"
+        tests:
+          - not_null
+          - unique

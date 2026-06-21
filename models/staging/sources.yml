@@ -13,3 +13,11 @@ sources:
         description: >
           Chadwick Bureau player registry. Maps MLB MLBAM IDs to player names
           and metadata. Full refresh on each pipeline run.
+      - name: mlb_teams
+        description: >
+          MLB clubs (team dimension) from the MLB Stats API. One row per team
+          with league / division / venue. Full refresh on each pipeline run.
+      - name: mlb_rosters
+        description: >
+          MLB 40-man rosters from the MLB Stats API — the player -> team
+          mapping, keyed on mlbam_id. Full refresh on each pipeline run.

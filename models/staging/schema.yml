@@ -60,3 +60,29 @@ models:
         description: "Bat speed at point of contact in mph (2024+ metric)"
       - name: swing_length
         description: "Length of swing path in feet (2024+ metric)"
+
+  - name: stg_mlb_teams
+    description: >
+      MLB clubs from the Stats API, one row per team. Team dimension source for
+      league / division / venue context.
+    columns:
+      - name: team_id
+        description: "MLB Stats API team id"
+        tests:
+          - not_null
+          - unique
+
+  - name: stg_mlb_rosters
+    description: >
+      MLB 40-man rosters from the Stats API — the player -> team mapping,
+      de-duplicated to one (current) team per player.
+    columns:
+      - name: mlbam_id
+        description: "MLBAM player id (joins to batter_id / pitcher_id)"
+        tests:
+          - not_null
+          - unique
+      - name: team_id
+        description: "MLB Stats API team id the player currently rosters with"
+        tests:
+          - not_null

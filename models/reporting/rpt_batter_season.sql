@@ -19,6 +19,24 @@ players as (
 
 ),
 
+roster as (
+
+    select mlbam_id, team_id from {{ ref('stg_mlb_rosters') }}
+
+),
+
+teams as (
+
+    select
+        team_id,
+        team_abbrev,
+        team_name,
+        league_name,
+        division_name
+    from {{ ref('dim_team') }}
+
+),
+
 aggregated as (
 
     select
@@ -60,6 +78,11 @@ aggregated as (
 select
     a.batter_id,
     concat(p.first_name, ' ', p.last_name) as batter_name,
+    t.team_id,
+    t.team_abbrev,
+    t.team_name,
+    t.league_name,
+    t.division_name,
     a.games,
     a.plate_appearances,
     a.at_bats,
@@ -79,3 +102,5 @@ select
 
 from aggregated a
 left join players p on a.batter_id = p.mlbam_id
+left join roster r on a.batter_id = r.mlbam_id
+left join teams t on r.team_id = t.team_id
