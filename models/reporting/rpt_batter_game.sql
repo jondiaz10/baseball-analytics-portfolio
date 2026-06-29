@@ -2,12 +2,12 @@
 -- Grain: one row per batter_id per game (inherited from the mart).
 -- Rate stats are re-derived from this game's raw counts via SAFE_DIVIDE.
 --
--- TEAM (v1): the batter's CURRENT team is attached from the 40-man roster
--- (stg_mlb_rosters -> dim_team), giving a clean "Team" slicer. Note this is the
--- player's present club, not necessarily their team on this game's date — a
--- trade-aware, per-game historical team is a separate V2 ticket (derive the
--- batting side from inning_topbot in staging and carry batter_team through the
--- marts). The mart's home_team / away_team remain the game context.
+-- TEAM (team-of-record): the batter's team ON THIS GAME'S DATE, derived from the
+-- event in staging (inning_topbot + home/away) and carried through the mart as
+-- batter_team. dim_team is joined on the event abbreviation to attach team_id /
+-- name / league / division, so this is trade-aware: a traded player shows each
+-- club on the games actually played there. dim_roster_status now supplies the
+-- CURRENT availability / status label only (current-roster surfacing), NOT team.
 
 with batter_games as (
 
@@ -22,12 +22,6 @@ players as (
         first_name,
         last_name
     from {{ source('raw', 'player_lookup') }}
-
-),
-
-roster as (
-
-    select mlbam_id, team_id from {{ ref('stg_mlb_rosters') }}
 
 ),
 
@@ -53,6 +47,7 @@ status as (
 select
     bg.batter_id,
     concat(p.first_name, ' ', p.last_name) as batter_name,
+    bg.batter_team,
     t.team_id,
     t.team_abbrev,
     t.team_name,
@@ -75,6 +70,5 @@ select
 
 from batter_games bg
 left join players p on bg.batter_id = p.mlbam_id
-left join roster r on bg.batter_id = r.mlbam_id
-left join teams t on r.team_id = t.team_id
+left join teams t on bg.batter_team = t.team_abbrev
 left join status s on bg.batter_id = s.mlbam_id

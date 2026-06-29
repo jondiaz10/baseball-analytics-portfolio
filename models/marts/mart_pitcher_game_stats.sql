@@ -21,6 +21,9 @@ pitcher_stats as (
         game_year,
         home_team,
         away_team,
+        -- Event-derived team-of-record; constant per pitcher-game, so it joins the
+        -- grouping key and does not change the (pitcher_id, game_id) grain.
+        pitching_team,
         max(pitcher_throws) as pitcher_throws,
 
         -- volume
@@ -85,7 +88,7 @@ pitcher_stats as (
         avg(xwoba) as avg_xwoba_against
 
     from pitches
-    group by pitcher_id, game_id, game_date, game_year, home_team, away_team
+    group by pitcher_id, game_id, game_date, game_year, home_team, away_team, pitching_team
 
 )
 
@@ -98,6 +101,7 @@ select
     game_year,
     home_team,
     away_team,
+    pitching_team,
     pitcher_throws,
 
     -- volume

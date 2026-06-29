@@ -30,6 +30,10 @@ renamed as (
         -- team and game context
         home_team,
         away_team,
+        -- Team-of-record on this game's date, derived from the event itself.
+        -- inning_topbot = 'Top' => away team is batting (home team in the field).
+        case when inning_topbot = 'Top' then away_team else home_team end as batter_team,
+        case when inning_topbot = 'Top' then home_team else away_team end as pitching_team,
         inning,
         inning_topbot as inning_half,
         outs_when_up,

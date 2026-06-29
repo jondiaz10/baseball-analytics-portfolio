@@ -27,8 +27,8 @@ models:
   - name: rpt_batter_game
     description: >
       Per-game batting detail (game-log / drill-down). One row per batter per
-      game. Carries the game's home/away teams only — see model comment on the
-      batter-team data gap.
+      game. Carries the event-derived team-of-record (batter_team) for the date
+      of the game, resolved to team_id / name / league / division via dim_team.
     columns:
       - name: batter_id
         description: MLBAM player id.
@@ -38,6 +38,13 @@ models:
         description: Date of the game.
         tests:
           - not_null
+      - name: batter_team
+        description: Event-derived team-of-record (abbrev) for the batter on this game's date.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_abbrev
 
   - name: rpt_pitcher_season
     description: >

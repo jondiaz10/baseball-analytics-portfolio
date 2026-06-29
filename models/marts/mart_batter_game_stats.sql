@@ -20,6 +20,9 @@ batter_stats as (
         game_year,
         home_team,
         away_team,
+        -- Event-derived team-of-record; constant per batter-game, so it joins the
+        -- grouping key and does not change the (batter_id, game_id) grain.
+        batter_team,
         max(batter_side) as batter_side,
 
         -- volume
@@ -77,7 +80,7 @@ batter_stats as (
         avg(swing_length) as avg_swing_length
 
     from pitches
-    group by batter_id, game_id, game_date, game_year, home_team, away_team
+    group by batter_id, game_id, game_date, game_year, home_team, away_team, batter_team
 
 )
 
@@ -89,6 +92,7 @@ select
     game_year,
     home_team,
     away_team,
+    batter_team,
     batter_side,
 
     -- volume
