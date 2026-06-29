@@ -60,13 +60,27 @@ select
     bg.away_team,
     bg.batter_side,
     bg.plate_appearances,
+
+    -- offensive counting stats (game-grain passthrough from the mart)
+    bg.at_bats,
+    bg.hits,
+    bg.singles,
+    bg.doubles,
+    bg.triples,
+    bg.home_runs,
+    bg.strikeouts,
+    bg.walks,
+
     bg.batted_balls,
     bg.avg_exit_velocity_mph,
     bg.max_exit_velocity_mph,
     bg.avg_launch_angle_deg,
+    bg.barrel_count,
     safe_divide(bg.hard_hit_count, bg.batted_balls) as hard_hit_rate,
     safe_divide(bg.barrel_count, bg.batted_balls) as barrel_rate,
-    bg.avg_xwoba
+    bg.avg_xba,
+    bg.avg_xwoba,
+    bg.avg_xslg
 
 from batter_games bg
 left join players p on bg.batter_id = p.mlbam_id

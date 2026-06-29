@@ -45,6 +45,50 @@ models:
           - relationships:
               to: ref('dim_team')
               field: team_abbrev
+      - name: at_bats
+        description: At-bats in the game (passthrough from mart_batter_game_stats).
+        tests:
+          - not_null
+      - name: hits
+        description: Total hits in the game (singles + doubles + triples + home runs).
+        tests:
+          - not_null
+      - name: singles
+        description: Singles in the game.
+        tests:
+          - not_null
+      - name: doubles
+        description: Doubles in the game.
+        tests:
+          - not_null
+      - name: triples
+        description: Triples in the game.
+        tests:
+          - not_null
+      - name: home_runs
+        description: Home runs in the game.
+        tests:
+          - not_null
+      - name: strikeouts
+        description: Strikeouts in the game (incl. strikeout double plays).
+        tests:
+          - not_null
+      - name: walks
+        description: Walks in the game (incl. intentional).
+        tests:
+          - not_null
+      - name: barrel_count
+        description: >
+          Barreled balls in the game (launch_speed_angle = 6). Legitimately NULL on
+          games with no batted-ball events, so no not_null guard.
+      - name: avg_xba
+        description: >
+          Average expected batting average on batted balls. NULL when no balls were
+          put in play (all walks/strikeouts), so no not_null guard.
+      - name: avg_xslg
+        description: >
+          Average expected slugging on batted balls. NULL when no balls were put in
+          play, so no not_null guard.
 
   - name: rpt_pitcher_season
     description: >
