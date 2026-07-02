@@ -142,11 +142,11 @@ baseball-analytics/
 | `dim_team` | mart | team | Conformed team dimension (league / division / venue) — 30 rows |
 | `dim_roster_status` | mart | player | Full rostered population + `availability` label, independent of stats — 8,189 rows |
 | `rpt_league_batting_kpis` | reporting | 1 row | League exit velocity, xwOBA, hard-hit rate (denominator-weighted) |
-| `rpt_batter_season` | reporting | batter | Season-to-date batting line, named via player_lookup; + current team & availability — 530 rows |
-| `rpt_batter_game` | reporting | batter × game | Per-game batting detail for drill-down; + current team & availability — 17,778 rows |
+| `rpt_batter_season` | reporting | batter × team-stint | Season-to-date batting line, split by team-stint (event-derived team; traded batter = 1 row per club, combined = downstream SUM); + availability — 600 rows |
+| `rpt_batter_game` | reporting | batter × game | Per-game batting detail for drill-down; + event-derived team (of the game date) & availability — 17,778 rows |
 | `rpt_league_pitching_kpis` | reporting | 1 row | League velocity, whiff rate, strike % (denominator-weighted) |
-| `rpt_pitcher_season` | reporting | pitcher | Season-to-date pitching line; + current team & availability — 654 rows |
-| `rpt_pitcher_pitch_mix` | reporting | pitcher × pitch type | Long-format pitch mix, weighted by pitches; + current team & availability — 5,886 rows |
+| `rpt_pitcher_season` | reporting | pitcher × team-stint | Season-to-date pitching line, split by team-stint (event-derived team; traded pitcher = 1 row per club, combined = downstream SUM); + availability — 742 rows |
+| `rpt_pitcher_pitch_mix` | reporting | pitcher × team-stint × pitch type | Long-format pitch mix, re-weighted by pitches within team-stint (event-derived team); + availability — 6,678 rows |
 
 All reporting models are **views** in a dedicated `reporting` BigQuery dataset, so the BI layer reads pre-shaped, pre-aggregated data with no in-dashboard math.
 

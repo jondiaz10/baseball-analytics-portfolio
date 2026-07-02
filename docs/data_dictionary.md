@@ -1,7 +1,7 @@
 # Data Dictionary — baseball-analytics
 
-**Generated:** 2026-06-29
-**Source commit:** `b3d9d73` (team-of-record Slice 1)
+**Generated:** 2026-07-02
+**Source commit:** `164c500` (team-of-record Slice 2 — season split-by-stint)
 **Scope:** Consumable model layers — dimensions, game-grain marts, the team-origin
 slice of staging, and reporting. Raw (`raw.*`) is intentionally excluded.
 
@@ -217,20 +217,21 @@ in the [Undocumented columns](#undocumented-columns) backlog at the end.
 ### rpt_batter_season
 
 - **Layer:** reporting
-- **Grain:** one row per `batter_id`
-- **Purpose:** Season-to-date batting line per batter, denominator-weighted.
-- **Built on:** `mart_batter_game_stats`, `dim_team`, `dim_roster_status`, `stg_mlb_rosters`, `raw.player_lookup`
-- **Note:** Team is still attached from the **current** 40-man roster (Slice 2 pending — not yet trade-aware at season grain).
+- **Grain:** one row per `batter_id` + `batter_team` (batter per team-stint)
+- **Purpose:** Season-to-date batting line per batter, split by team-stint, denominator-weighted. A traded batter has one row per club; the combined season line is a downstream SUM of the summable components (rates recompute from weighted components, never averaged).
+- **Built on:** `mart_batter_game_stats`, `dim_team`, `dim_roster_status`, `raw.player_lookup`
+- **Note:** Team is **event-derived** (the club the batter played for, carried game-grain from the marts), trade-aware — not the current 40-man roster.
 
 | Column | Type | Description |
 | --- | --- | --- |
-| batter_id | INTEGER | MLBAM player id (grain) |
+| batter_id | INTEGER | MLBAM player id (part of grain) |
 | batter_name | STRING | Batter full name (inferred) |
-| team_id | INTEGER | Current team id (roster-based, Slice 2 pending) (inferred) |
-| team_abbrev | STRING | Current team abbreviation (inferred) |
-| team_name | STRING | Current team full name (inferred) |
-| league_name | STRING | Current league name (inferred) |
-| division_name | STRING | Current division name (inferred) |
+| batter_team | STRING | Event-derived team-of-record (abbrev) for this stint; grain key (inferred) |
+| team_id | INTEGER | Stint team id, joined from dim_team on the event abbrev (inferred) |
+| team_abbrev | STRING | Stint team abbreviation, from dim_team (inferred) |
+| team_name | STRING | Stint team full name (inferred) |
+| league_name | STRING | Stint team league name (inferred) |
+| division_name | STRING | Stint team division name (inferred) |
 | availability | STRING | Current availability label (inferred) |
 | status_description | STRING | Current roster status (inferred) |
 | games | INTEGER | Games played in the season (inferred) |
@@ -253,20 +254,21 @@ in the [Undocumented columns](#undocumented-columns) backlog at the end.
 ### rpt_pitcher_pitch_mix
 
 - **Layer:** reporting
-- **Grain:** one row per `pitcher_id` per `pitch_type`
-- **Purpose:** Pitch mix in long format; season `pitch_pct` re-weighted by total pitches per game.
-- **Built on:** `mart_pitcher_game_stats`, `dim_team`, `dim_roster_status`, `stg_mlb_rosters`
-- **Note:** Team attached from the **current** 40-man roster (Slice 2 pending).
+- **Grain:** one row per `pitcher_id` + `pitching_team` + `pitch_type`
+- **Purpose:** Pitch mix in long format, split by team-stint; season `pitch_pct` re-weighted by total pitches **within** the team-stint (a multi-team pitcher's usage per club is never blended across a trade).
+- **Built on:** `mart_pitcher_game_stats`, `dim_team`, `dim_roster_status`
+- **Note:** Team is **event-derived** (the club the pitcher threw for, carried game-grain from the marts), trade-aware — not the current 40-man roster.
 
 | Column | Type | Description |
 | --- | --- | --- |
-| pitcher_id | INTEGER | MLBAM player id |
+| pitcher_id | INTEGER | MLBAM player id (part of grain) |
 | pitcher_name | STRING | Pitcher full name (inferred) |
-| team_id | INTEGER | Current team id (roster-based, Slice 2 pending) (inferred) |
-| team_abbrev | STRING | Current team abbreviation (inferred) |
-| team_name | STRING | Current team full name (inferred) |
-| league_name | STRING | Current league name (inferred) |
-| division_name | STRING | Current division name (inferred) |
+| pitching_team | STRING | Event-derived team-of-record (abbrev) for this stint; grain key (inferred) |
+| team_id | INTEGER | Stint team id, joined from dim_team on the event abbrev (inferred) |
+| team_abbrev | STRING | Stint team abbreviation, from dim_team (inferred) |
+| team_name | STRING | Stint team full name (inferred) |
+| league_name | STRING | Stint team league name (inferred) |
+| division_name | STRING | Stint team division name (inferred) |
 | availability | STRING | Current availability label (inferred) |
 | status_description | STRING | Current roster status (inferred) |
 | pitch_type | STRING | Normalized pitch-type label (four_seam, sinker, ...) |
@@ -275,21 +277,22 @@ in the [Undocumented columns](#undocumented-columns) backlog at the end.
 ### rpt_pitcher_season
 
 - **Layer:** reporting
-- **Grain:** one row per `pitcher_id`
-- **Purpose:** Season-to-date pitching line per pitcher, denominator-weighted.
-- **Built on:** `mart_pitcher_game_stats`, `dim_team`, `dim_roster_status`, `stg_mlb_rosters`
-- **Note:** Team attached from the **current** 40-man roster (Slice 2 pending).
+- **Grain:** one row per `pitcher_id` + `pitching_team` (pitcher per team-stint)
+- **Purpose:** Season-to-date pitching line per pitcher, split by team-stint, denominator-weighted. A traded pitcher has one row per club; the combined season line is a downstream SUM of the summable components (rates recompute from weighted components, never averaged).
+- **Built on:** `mart_pitcher_game_stats`, `dim_team`, `dim_roster_status`
+- **Note:** Team is **event-derived** (the club the pitcher threw for, carried game-grain from the marts), trade-aware — not the current 40-man roster.
 
 | Column | Type | Description |
 | --- | --- | --- |
-| pitcher_id | INTEGER | MLBAM player id (grain) |
+| pitcher_id | INTEGER | MLBAM player id (part of grain) |
 | pitcher_name | STRING | Pitcher full name (inferred) |
 | pitcher_throws | STRING | Pitcher throwing arm, L/R (inferred) |
-| team_id | INTEGER | Current team id (roster-based, Slice 2 pending) (inferred) |
-| team_abbrev | STRING | Current team abbreviation (inferred) |
-| team_name | STRING | Current team full name (inferred) |
-| league_name | STRING | Current league name (inferred) |
-| division_name | STRING | Current division name (inferred) |
+| pitching_team | STRING | Event-derived team-of-record (abbrev) for this stint; grain key (inferred) |
+| team_id | INTEGER | Stint team id, joined from dim_team on the event abbrev (inferred) |
+| team_abbrev | STRING | Stint team abbreviation, from dim_team (inferred) |
+| team_name | STRING | Stint team full name (inferred) |
+| league_name | STRING | Stint team league name (inferred) |
+| division_name | STRING | Stint team division name (inferred) |
 | availability | STRING | Current availability label (inferred) |
 | status_description | STRING | Current roster status (inferred) |
 | games | INTEGER | Games pitched in the season (inferred) |
