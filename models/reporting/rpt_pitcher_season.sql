@@ -1,23 +1,30 @@
--- Season-to-date pitching line per pitcher, for the dashboard's pitching tab.
--- Grain: one row per pitcher_id.
--- pitcher_name / pitcher_throws come straight from the mart (no lookup join
--- needed). Rate and velocity/spin stats are weighted by total pitches rather
--- than averaged across games.
+-- Season-to-date pitching line per pitcher, SPLIT BY TEAM STINT.
+-- Grain: one row per (pitcher_id, pitching_team).
 --
--- TEAM (v1): the pitcher's CURRENT team is attached from the 40-man roster
--- (stg_mlb_rosters -> dim_team) for a clean "Team" slicer. This is the present
--- club, not necessarily the team on a given game date — a trade-aware, per-game
--- historical team is a separate V2 ticket.
+-- WHY split-by-stint: team-of-record is the event-derived club the pitcher threw
+-- for (pitching_team, carried game-grain through mart_pitcher_game_stats), not the
+-- current 40-man club. A traded pitcher splits into one row per club; there is no
+-- synthetic combined row -- the season total is a downstream SUM over the stints.
+--
+-- WHY team enters the GROUP BY: pitching_team changes on a trade, so it is a
+-- grain-defining key rather than a lookup attribute; adding it to the GROUP BY is
+-- what produces the per-stint rows.
+--
+-- WHY rates are WEIGHTED, not averaged: every rate is sum(metric * denom)/sum(denom)
+-- over the games in this stint (velocity/spin/extension by total_pitches, whiff by
+-- swings, strike% by pitches). With team in the GROUP BY the weighting recomputes
+-- strictly within the stint, so a stint's velocity is its own pitch-weighted mean,
+-- never blended with the other club's. Summing components across stints and
+-- re-dividing reproduces the true combined-season rate.
+--
+-- The old current-roster path (stg_mlb_rosters -> dim_team on player id, no date
+-- predicate) is DELETED here -- the "v1 CURRENT team" was the Slice 1 bug at season
+-- grain, stamping the present club on every historical game.
+-- pitcher_name / pitcher_throws still come straight from the mart (no lookup).
 
 with pitcher_games as (
 
     select * from {{ ref('mart_pitcher_game_stats') }}
-
-),
-
-roster as (
-
-    select mlbam_id, team_id from {{ ref('stg_mlb_rosters') }}
 
 ),
 
@@ -46,6 +53,9 @@ aggregated as (
         pitcher_id,
         pitcher_name,
         pitcher_throws,
+        -- Grain key: the event-derived team the pitcher threw for. In the GROUP BY
+        -- so a traded pitcher produces one row per club (his stint with that club).
+        pitching_team,
 
         -- volume (additive across games)
         count(distinct game_id) as games,
@@ -73,7 +83,7 @@ aggregated as (
         ) as avg_extension
 
     from pitcher_games
-    group by pitcher_id, pitcher_name, pitcher_throws
+    group by pitcher_id, pitcher_name, pitcher_throws, pitching_team
 
 )
 
@@ -81,6 +91,7 @@ select
     a.pitcher_id,
     a.pitcher_name,
     a.pitcher_throws,
+    a.pitching_team,
     t.team_id,
     t.team_abbrev,
     t.team_name,
@@ -103,6 +114,9 @@ select
     a.avg_extension
 
 from aggregated a
-left join roster r on a.pitcher_id = r.mlbam_id
-left join teams t on r.team_id = t.team_id
+-- Join dim_team on the EVENT team (abbrev), mirroring rpt_batter_game, so the
+-- team attributes describe the club of THIS stint -- trade-aware.
+left join teams t on a.pitching_team = t.team_abbrev
+-- Availability is CURRENT-state, player-grain by design; it broadcasts to every
+-- stint row of a traded pitcher (a "where is he now" label, not per-stint history).
 left join status s on a.pitcher_id = s.mlbam_id

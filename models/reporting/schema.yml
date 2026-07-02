@@ -15,14 +15,24 @@ models:
 
   - name: rpt_batter_season
     description: >
-      Season-to-date batting line per batter, denominator-weighted. One row per
-      batter_id, named via the player_lookup registry.
+      Season-to-date batting line per batter, SPLIT BY TEAM STINT and
+      denominator-weighted. Grain: one row per (batter_id, batter_team) -- a
+      traded batter has one row per club, and there is no synthetic combined row
+      (the combined season line is a downstream SUM over the stints). Named via
+      the player_lookup registry. Composite-grain uniqueness is enforced by the
+      singular test assert_one_row_per_batter_team_season.
     columns:
       - name: batter_id
-        description: MLBAM player id (grain).
+        description: MLBAM player id (part of the composite grain, no longer unique alone).
         tests:
           - not_null
-          - unique
+      - name: batter_team
+        description: Event-derived team-of-record (abbrev) for this stint; grain key.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_abbrev
 
   - name: rpt_batter_game
     description: >
@@ -92,24 +102,43 @@ models:
 
   - name: rpt_pitcher_season
     description: >
-      Season-to-date pitching line per pitcher, denominator-weighted. One row
-      per pitcher_id. Name/handedness come from the mart.
+      Season-to-date pitching line per pitcher, SPLIT BY TEAM STINT and
+      denominator-weighted. Grain: one row per (pitcher_id, pitching_team) -- a
+      traded pitcher has one row per club, no synthetic combined row (combined is
+      a downstream SUM). Name/handedness come from the mart. Composite-grain
+      uniqueness is enforced by assert_one_row_per_pitcher_team_season.
     columns:
       - name: pitcher_id
-        description: MLBAM player id (grain).
+        description: MLBAM player id (part of the composite grain, no longer unique alone).
         tests:
           - not_null
-          - unique
+      - name: pitching_team
+        description: Event-derived team-of-record (abbrev) for this stint; grain key.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_abbrev
 
   - name: rpt_pitcher_pitch_mix
     description: >
-      Pitch mix in long format. One row per pitcher per pitch type, with the
-      season pitch_pct re-weighted by total pitches.
+      Pitch mix in long format, SPLIT BY TEAM STINT. Grain: one row per
+      (pitcher_id, pitching_team, pitch_type), with the season pitch_pct
+      re-weighted by total pitches WITHIN the stint (never blended across a
+      trade). Composite-grain uniqueness is enforced by
+      assert_one_row_per_pitcher_team_pitchtype.
     columns:
       - name: pitcher_id
-        description: MLBAM player id.
+        description: MLBAM player id (part of the composite grain).
         tests:
           - not_null
+      - name: pitching_team
+        description: Event-derived team-of-record (abbrev) for this stint; grain key.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_abbrev
       - name: pitch_type
         description: Normalized pitch-type label.
         tests:

@@ -1,20 +1,23 @@
--- Pitch-mix in long format for the dashboard (one row per pitcher per pitch
--- type), so it can drive a stacked bar / heat map without per-type columns.
--- The per-game pct_* columns are UNNESTed into (pitch_type, pct), then the
--- season pitch_pct is re-weighted by total pitches per game.
+-- Pitch-mix in long format for the dashboard, SPLIT BY TEAM STINT (one row per
+-- pitcher per team per pitch type), so it drives a stacked bar / heat map without
+-- per-type columns. The per-game pct_* columns are UNNESTed into (pitch_type, pct),
+-- then the season pitch_pct is re-weighted by total pitches per game.
 --
--- TEAM (v1): the pitcher's CURRENT team is attached from the 40-man roster
--- (stg_mlb_rosters -> dim_team) for a clean "Team" slicer.
+-- TEAM (team-of-record): the event-derived club the pitcher threw for
+-- (pitching_team, carried game-grain through mart_pitcher_game_stats), replacing
+-- the old "v1 CURRENT team" 40-man roster join (the Slice 1 bug at season grain).
+--
+-- WHY team enters the GROUP BY -- and why it matters MORE here: pitching_team is a
+-- grain key (it changes on a trade). Adding it means the re-weight
+-- safe_divide(sum(pct * total_pitches), sum(total_pitches)) re-weights strictly
+-- WITHIN a team-stint. A pitcher whose four-seam usage differs by club gets a
+-- separate, correctly-weighted four_seam% per club; the two are never blended into
+-- a meaningless cross-team average. No synthetic combined row -- the overall mix is
+-- recovered downstream by pitch-weighting the stint rows.
 
 with pitcher_games as (
 
     select * from {{ ref('mart_pitcher_game_stats') }}
-
-),
-
-roster as (
-
-    select mlbam_id, team_id from {{ ref('stg_mlb_rosters') }}
 
 ),
 
@@ -42,6 +45,7 @@ unpivoted as (
     select
         pg.pitcher_id,
         pg.pitcher_name,
+        pg.pitching_team,
         pg.total_pitches,
         mix.pitch_type,
         mix.pct
@@ -65,17 +69,22 @@ aggregated as (
     select
         pitcher_id,
         pitcher_name,
+        pitching_team,
         pitch_type,
+        -- Re-weight WITHIN team-stint: pitching_team is in the GROUP BY, so this
+        -- pitch-weighted mean is computed over only the games at this club and is
+        -- never blended across a trade.
         safe_divide(sum(pct * total_pitches), sum(total_pitches)) as pitch_pct
 
     from unpivoted
-    group by pitcher_id, pitcher_name, pitch_type
+    group by pitcher_id, pitcher_name, pitching_team, pitch_type
 
 )
 
 select
     a.pitcher_id,
     a.pitcher_name,
+    a.pitching_team,
     t.team_id,
     t.team_abbrev,
     t.team_name,
@@ -87,6 +96,8 @@ select
     a.pitch_pct
 
 from aggregated a
-left join roster r on a.pitcher_id = r.mlbam_id
-left join teams t on r.team_id = t.team_id
+-- Join dim_team on the EVENT team (abbrev), mirroring rpt_batter_game.
+left join teams t on a.pitching_team = t.team_abbrev
+-- Availability is current-state, player-grain; broadcasts to all of a pitcher's
+-- stint rows by design.
 left join status s on a.pitcher_id = s.mlbam_id
